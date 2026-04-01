@@ -259,12 +259,18 @@ WORLDBANK_API_BASE=https://api.worldbank.org/v2
 
 ### ✅ COMPLETED
 - CLAUDE.md, .env.example, .gitignore created
+- Phase 1: docker-compose.yml (postgres:16 — mapped to host port **5433**, 5432 occupied by other project)
+- Phase 1: EconAdvisor.sln + EconAdvisor.Api (.NET 8 Minimal API, builds clean)
+- Phase 1: NuGet packages — Npgsql.EF, FluentValidation, Serilog, Swagger, AspNetCore.HealthChecks.NpgSql
+- Phase 1: EconContext + IndicatorSeries + IndicatorObservation models (snake_case columns, unique indexes)
+- Phase 1: EF Core migration `InitialSchema` applied — tables `indicator_series` + `indicator_observations` exist
+- Phase 1: Program.cs — Serilog, Swagger (dev), /health (NpgSql health check), stub endpoints
+- Phase 1: GitHub repo created (okalangkenneth/EconAdvisor) + initial commit pushed to master
 
 ### 🔨 IN PROGRESS
-- Phase 1: Project scaffold + PostgreSQL schema
+- (none)
 
 ### ❌ REMAINING
-- Phase 1: .NET solution, EF Core models, Docker DB, git init + first push
 - Phase 2: Riksbank / SCB / World Bank typed HTTP clients + PostgreSQL cache
 - Phase 3: Dify workflow build (upload PDFs, RAG nodes, LLM node, test API)
 - Phase 4: POST /api/analyse — full data + Dify integration
