@@ -317,11 +317,19 @@ WORLDBANK_API_BASE=https://api.worldbank.org/v2
   - Verified: ES cluster GREEN, Kibana Up, both containers healthy
   - Index pattern to create in Kibana: econdadvisor-logs-* / @timestamp
 
+- Phase 6: GitHub Pages demo + README + LinkedIn post
+  - docs/index.html + style.css + app.js: Chart.js sparklines + chat-style Q&A UI
+  - README.md: Mermaid architecture diagram, indicator table, setup guide
+  - LINKEDIN_POST.md: tech stack writeup + production considerations
+  - dify-workflow/econdadvisor-workflow.yml: DSL export committed
+  - GitHub Pages: Settings → Pages → Branch: master / Folder: /docs
+  - Live URL: https://okalangkenneth.github.io/EconAdvisor
+
 ### 🔨 IN PROGRESS
 - (none)
 
 ### ❌ REMAINING
-- Phase 6: GitHub Pages Chart.js demo + README + LinkedIn post
+- (none — all 6 phases complete)
 
 ---
 
