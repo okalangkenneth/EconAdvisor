@@ -168,4 +168,4 @@ named volume and setting `UV_LINK_MODE=copy`.
 
 ---
 
-*Kenneth Okalang · [LinkedIn](https://linkedin.com/in/kenneth-okalang) · Uppsala, Sweden*
+*Kenneth Okalang · [LinkedIn](https://linkedin.com/in/kenneth-okalang) · Stockholm, Sweden*
