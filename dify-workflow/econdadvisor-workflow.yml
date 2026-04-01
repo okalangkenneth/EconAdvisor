@@ -1,0 +1,282 @@
+app:
+  description: 'EconAdvisor: AI macroeconomic analysis grounded in live Swedish indicators and Riksbank policy documents'
+  icon: "\U0001F4CA"
+  icon_background: '#0D1F2D'
+  mode: workflow
+  name: EconAdvisor Analysis Workflow
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.1
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {enabled: false}
+    opening_statement: ''
+    retriever_resource: {enabled: true}
+    sensitive_word_avoidance: {enabled: false}
+    speech_to_text: {enabled: false}
+    suggested_questions: []
+    suggested_questions_after_answer: {enabled: false}
+    text_to_speech: {enabled: false}
+  graph:
+    edges:
+    - data: {isInIteration: false, isInLoop: false, sourceType: start, targetType: knowledge-retrieval}
+      id: edge-start-to-kb
+      source: start_node
+      sourceHandle: source
+      target: kb_search
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data: {isInIteration: false, isInLoop: false, sourceType: knowledge-retrieval, targetType: llm}
+      id: edge-kb-to-llm
+      source: kb_search
+      sourceHandle: source
+      target: analysis_llm
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data: {isInIteration: false, isInLoop: false, sourceType: llm, targetType: code}
+      id: edge-llm-to-formatter
+      source: analysis_llm
+      sourceHandle: source
+      target: output_formatter
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data: {isInIteration: false, isInLoop: false, sourceType: code, targetType: end}
+      id: edge-formatter-to-end
+      source: output_formatter
+      sourceHandle: source
+      target: end_node
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+
+    # ── START NODE ────────────────────────────────────────────────────────────
+    - data:
+        desc: 'User question + live indicator JSON from the .NET API'
+        selected: false
+        title: Start
+        type: start
+        variables:
+        - label: Question
+          max_length: 500
+          options: []
+          required: true
+          type: paragraph
+          variable: question
+        - label: Indicators (JSON)
+          max_length: 4000
+          options: []
+          required: true
+          type: paragraph
+          variable: indicators
+      height: 148
+      id: start_node
+      position: {x: 30, y: 220}
+      positionAbsolute: {x: 30, y: 220}
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+
+    # ── KNOWLEDGE RETRIEVAL NODE ──────────────────────────────────────────────
+    # IMPORTANT: After importing this DSL, open the "Search Policy Docs" node in
+    # the Dify UI and manually attach your Knowledge Base:
+    #   Knowledge → + Add → select the KB you uploaded ALL policy docs to → Save → Publish
+    # KB should contain: Riksbank MPRs + SCB Economic Outlook + World Bank Sweden reports
+    - data:
+        dataset_configs:
+          datasets:
+            datasets: []
+          retrieval_model: multiple
+        dataset_query_variable_selector:
+        - start_node
+        - question
+        desc: 'Retrieves relevant passages from Riksbank, SCB, and World Bank policy documents'
+        query_variable_selector:
+        - start_node
+        - question
+        retrieval_mode: multiple
+        selected: false
+        title: Search Policy Docs
+        type: knowledge-retrieval
+      height: 122
+      id: kb_search
+      position: {x: 334, y: 220}
+      positionAbsolute: {x: 334, y: 220}
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+
+
+    # ── ANALYSIS LLM NODE ─────────────────────────────────────────────────────
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - kb_search
+          - result
+        desc: 'Macroeconomic analyst — grounds answer in live data + Riksbank policy docs'
+        memory: {enabled: false, window: {enabled: false, size: 50}}
+        model:
+          completion_params:
+            max_tokens: 2000
+            temperature: 0.3
+          mode: chat
+          name: claude-haiku-4-5-20251001
+          provider: anthropic
+        prompt_template:
+        - role: system
+          text: |
+            You are a senior macroeconomic analyst specialising in the Swedish economy.
+            You have access to live economic indicators and excerpts from policy and
+            outlook documents — Riksbank Monetary Policy Reports, SCB Economic Outlooks,
+            and World Bank Sweden country assessments (shown in CONTEXT above).
+
+            Your task: answer the user's question with a concise, evidence-based analysis.
+
+            Rules:
+            1. Ground every claim in either the live indicators or the policy documents.
+            2. Do NOT invent data points, forecasts, or policy statements.
+            3. When citing a document, name the source and type
+               (e.g. "Riksbank MPR Feb 2025", "SCB Economic Outlook Q1 2025",
+               "World Bank Sweden Country Report 2024").
+            4. Structure your answer as:
+               - A 2–3 sentence direct answer to the question
+               - Key evidence (bullet points referencing the indicators provided)
+               - Policy context from the documents (if relevant)
+               - One-sentence outlook
+            5. If the indicators or documents do not contain enough information to answer
+               confidently, say so explicitly rather than speculating.
+
+            Indicator reference guide (so you interpret the data correctly):
+            - policy_rate: Riksbank repo rate in % — the primary monetary policy tool
+            - cpif: CPIF 12-month inflation in % — Riksbank targets 2%
+            - unemployment: Unemployment rate 15–74 in %
+            - gdp_growth: Annual GDP growth in %
+            - real_interest_rate: policy_rate − cpif — negative = stimulative, positive = restrictive
+            - yield_curve_slope: 10yr − 2yr government bond yield — negative = inverted = recession signal
+        - role: user
+          text: |
+            QUESTION: {{#start_node.question#}}
+
+            LIVE INDICATORS (as of today):
+            {{#start_node.indicators#}}
+
+            Answer the question grounded in the indicators above and the Riksbank
+            policy documents in CONTEXT. Follow the structure in your system prompt.
+        retry_config:
+          enabled: true
+          exponential_backoff: {enabled: false, max_interval: 10000, multiplier: 2}
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+        structured_output: {enabled: false}
+        title: Macroeconomic Analyst
+        type: llm
+        vision: {configs: {variable_selector: []}, enabled: false}
+      height: 122
+      id: analysis_llm
+      position: {x: 638, y: 220}
+      positionAbsolute: {x: 638, y: 220}
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+
+
+    # ── OUTPUT FORMATTER (CODE NODE) ──────────────────────────────────────────
+    # Extracts citations from the KB retrieval result and packages the
+    # final structured output expected by DifyWorkflowClient.cs.
+    - data:
+        code: |
+          import json, re
+
+          def extract_citations(kb_result: str) -> list:
+              """
+              Dify knowledge-retrieval result is a plain string of retrieved chunks.
+              Each chunk is prefixed with the document title and page number.
+              We extract unique source references to use as citations.
+              """
+              citations = []
+              seen = set()
+              # Match patterns like "[DocumentTitle]" or "Source: DocumentTitle"
+              patterns = [
+                  r'\[([^\]]{5,80})\]',         # [Document Title]
+                  r'(?:Source|From|Document):\s*([^\n]{5,80})',
+              ]
+              for pattern in patterns:
+                  for match in re.finditer(pattern, kb_result or '', re.IGNORECASE):
+                      ref = match.group(1).strip()
+                      if ref not in seen:
+                          seen.add(ref)
+                          citations.append(ref)
+              # Fallback: if no structured citations found, note the KB was searched
+              if not citations and kb_result and len(kb_result.strip()) > 20:
+                  citations = ["Riksbank Monetary Policy Documents"]
+              return citations[:5]  # cap at 5 citations
+
+          def main(analysis_text: str, kb_result: str) -> dict:
+              citations = extract_citations(kb_result)
+              return {
+                  "analysis":  analysis_text.strip(),
+                  "citations": json.dumps(citations),
+              }
+        code_language: python3
+        desc: 'Packages analysis text + extracts document citations'
+        outputs:
+          analysis:  {children: null, type: string}
+          citations: {children: null, type: string}
+        selected: false
+        title: Output Formatter
+        type: code
+        variables:
+        - label: analysis_text
+          value_selector: [analysis_llm, text]
+          variable: analysis_text
+        - label: kb_result
+          value_selector: [kb_search, result]
+          variable: kb_result
+      height: 122
+      id: output_formatter
+      position: {x: 942, y: 220}
+      positionAbsolute: {x: 942, y: 220}
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+
+    # ── END NODE ──────────────────────────────────────────────────────────────
+    - data:
+        desc: 'Structured analysis + citation list consumed by DifyWorkflowClient.cs'
+        outputs:
+        - value_selector: [output_formatter, analysis]
+          value_type: string
+          variable: analysis
+        - value_selector: [output_formatter, citations]
+          value_type: string
+          variable: citations
+        selected: false
+        title: End
+        type: end
+      height: 122
+      id: end_node
+      position: {x: 1246, y: 220}
+      positionAbsolute: {x: 1246, y: 220}
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+
+    viewport: {x: 0, y: 0, zoom: 0.6}

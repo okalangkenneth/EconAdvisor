@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EconAdvisor — Swedish Macroeconomic Analysis</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">📊</span>
+        <div>
+          <h1 class="brand-title">EconAdvisor</h1>
+          <p class="brand-sub">Swedish Macroeconomic Analysis · Riksbank · SCB · World Bank</p>
+        </div>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ── Indicator Dashboard ── -->
+    <section class="section">
+      <h2 class="section-title">Live Indicators · Sweden</h2>
+      <div class="indicators-grid" id="indicatorsGrid">
+        <!-- Cards injected by app.js -->
+      </div>
+    </section>
+
+    <!-- ── Analysis Panel ── -->
+    <section class="section">
+      <h2 class="section-title">Ask the Analyst</h2>
+
+      <div class="question-buttons" id="questionButtons">
+        <button class="q-btn" data-q="Is Sweden heading into recession?">Is Sweden heading into recession?</button>
+        <button class="q-btn" data-q="What does the yield curve signal about Sweden's economy?">What does the yield curve signal?</button>
+        <button class="q-btn" data-q="How does current CPIF inflation compare to Riksbank's policy rate?">CPIF vs policy rate</button>
+        <button class="q-btn" data-q="What is the real interest rate in Sweden and what does it mean?">Real interest rate explained</button>
+      </div>
+
+      <div class="ask-row">
+        <input
+          type="text"
+          id="questionInput"
+          class="ask-input"
+          placeholder="Ask a macroeconomic question about Sweden…"
+          maxlength="500"
+        />
+        <button class="ask-btn" id="askBtn" onclick="runAnalysis()">Analyse ↗</button>
+      </div>
+
+      <div class="answer-panel" id="answerPanel" style="display:none">
+        <div class="answer-header">
+          <span class="answer-icon">🧠</span>
+          <span id="answerQuestion" class="answer-question"></span>
+        </div>
+        <div id="answerText" class="answer-text"></div>
+        <div id="citationsSection" class="citations" style="display:none">
+          <p class="citations-label">Sources</p>
+          <ul id="citationsList"></ul>
+        </div>
+        <div class="answer-meta">
+          <span id="answerMeta"></span>
+        </div>
+      </div>
+
+      <div class="loading-panel" id="loadingPanel" style="display:none">
+        <div class="loading-bar"><div class="loading-fill"></div></div>
+        <p class="loading-text">Fetching live indicators and generating analysis…</p>
+      </div>
+
+      <div class="error-panel" id="errorPanel" style="display:none">
+        <span>⚠️</span> <span id="errorText"></span>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>
+      EconAdvisor · .NET 8 · PostgreSQL · Dify RAG · Claude Haiku · Riksbank SWEA v1 · SCB PxWeb · World Bank API v2
+      · <a href="https://github.com/okalangkenneth/EconAdvisor" target="_blank">GitHub ↗</a>
+    </p>
+    <p class="footer-note">
+      Demo reads from a locally-running API. Data cached 1 hour. AI analysis grounded in Riksbank policy documents.
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

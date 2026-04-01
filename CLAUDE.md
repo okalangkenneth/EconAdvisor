@@ -277,13 +277,50 @@ WORLDBANK_API_BASE=https://api.worldbank.org/v2
 - Phase 2: Corrections Log entry: SCB PxWeb variable codes differ from Swedish display names
   (e.g. "Kön" → code "Kon", "Arbetskraftstillhörighet" → code "Arbetskraftstillh")
 
+- Phase 2: RiksbankClient — SECBREPOEFF (policy rate), SEGVB2YC, SEGVB10YC; SWEA v1 clean REST
+- Phase 2: ScbClient — CPIF (PR0101G/KPIF2020, ContentsCode=000007ZM) + unemployment (AM0401A/AKURLBefM)
+  — custom JSON-stat stride parser required (flat value array, not named fields)
+- Phase 2: WorldBankClient — SE GDP growth NY.GDP.MKTP.KD.ZG; outer array [metadata, dataArray] shape
+- Phase 2: IndicatorService — 1h TTL cache, PostgreSQL ON CONFLICT upsert, derived series on the fly
+- Phase 2: GET /api/indicators/{country}/{series} — all 8 series live-tested via Swagger
+- Phase 2: API runs on port 5050 (5000 occupied by ApiGateway container)
+
+- Phase 3: DifyWorkflowClient — typed HttpClient, POSTs /workflows/run (blocking mode)
+  - DifyUnavailableException → callers surface as 503
+  - Deserialises data.outputs.analysis + parses citations JSON string → string[]
+  - Logs question (truncated 100 chars), duration_ms, data.status
+  - Registered in Program.cs; base URL from Dify:ApiBase, Bearer from Dify:WorkflowKey
+- Phase 3: DSL workflow imported and published — Start → Search Policy Docs (KB attached) → Macroeconomic Analyst (Claude Haiku) → Output Formatter → End
+- Phase 3: KB "EconAdvisor Policy Docs" — 2 docs indexed (monetary-policy-report-march-2026, monetary-policy-update-january-2026), High Quality / Vector Search / nomic-embed-text (Ollama)
+- Phase 3: DIFY_WORKFLOW_KEY saved to .env; dotnet build 0 errors
+- Phase 3: Output Formatter code fixed — kb_result is a list of chunk objects, not a string; must join to text before regex
+- Phase 3: Test Run confirmed — coherent structured analysis returned (Direct Answer + Key Evidence bullets + Policy Context)
+
+- Phase 4: POST /api/analyse — full integration
+  - AnalyseRequest + AnalyseResponse models
+  - AnalyseRequestValidator: Question required/max 500; Country must be 2 uppercase letters
+  - Fetches all 6 series (policy_rate, cpif, unemployment, gdp_growth, real_interest_rate, yield_curve_slope)
+  - Snapshot dict → JSON string → DifyWorkflowClient.AnalyseAsync → AnalyseResponse
+  - DifyUnavailableException → 503; unexpected errors → 500
+  - Validators registered via AddValidatorsFromAssemblyContaining in Program.cs
+
+- Phase 5: Serilog + ELK observability
+  - docker-compose.yml: elasticsearch:7.17.9 + kibana:7.17.9 services + esdata named volume
+  - ES: single-node, xpack.security disabled, ES_JAVA_OPTS -Xms512m -Xmx512m, port 9200
+  - Kibana: port 5601, depends_on ES healthcheck
+  - Serilog.Sinks.Elasticsearch downgraded 10.0.0 → 8.4.0 (NEST 7.x, ES 7.17 compatible)
+  - Program.cs: .WriteTo.Elasticsearch — index econdadvisor-logs-{0:yyyy.MM.dd},
+    AutoRegisterTemplate=true, URL from ELASTICSEARCH_URL env var (default http://localhost:9200)
+  - All service clients already had complete structured logging — no changes needed
+  - ES healthcheck: retries:15, interval:20s, start_period:60s (ES takes ~3 min to boot on this machine)
+  - Kibana depends_on uses service_started (not service_healthy) — Kibana reconnects independently
+  - Verified: ES cluster GREEN, Kibana Up, both containers healthy
+  - Index pattern to create in Kibana: econdadvisor-logs-* / @timestamp
+
 ### 🔨 IN PROGRESS
 - (none)
 
 ### ❌ REMAINING
-- Phase 3: Dify workflow build (upload PDFs, RAG nodes, LLM node, test API)
-- Phase 4: POST /api/analyse — full data + Dify integration
-- Phase 5: Serilog + ELK (Elasticsearch 7.17 + Kibana 7.17)
 - Phase 6: GitHub Pages Chart.js demo + README + LinkedIn post
 
 ---
@@ -334,14 +371,27 @@ curl http://localhost:5000/api/indicators/SE/cpif
 ### Phase 3 — Dify Workflow Build
 **Goal**: Working Dify workflow; returns analysis from .NET HTTP call.
 
+**Two-layer design — important distinction:**
+- **Numbers** (policy rate, CPIF, unemployment, GDP, yield curve) → already live via
+  the .NET data pipeline. These are injected as structured JSON into the `indicators`
+  input variable on every workflow run. No documents needed for this.
+- **Qualitative context** (why rates are where they are, policy forecasts, methodology)
+  → RAG knowledge base. One KB named "EconAdvisor Policy Docs" containing PDFs from
+  all three sources: Riksbank, SCB, and World Bank.
+
 Deliverables:
-- Riksbank Monetary Policy Report PDFs uploaded to Dify Knowledge Base
-- Dify workflow nodes:
-  1. **Input**: `question` (string) + `indicators` (JSON object)
-  2. **Knowledge Retrieval**: RAG over uploaded PDFs
-  3. **LLM**: Claude — economist persona, indicator data + retrieved chunks as context
-  4. **Output**: `{ analysis: string, citations: string[] }`
-- `DIFY_WORKFLOW_KEY` saved to `.env`
+- **Knowledge Base** ("EconAdvisor Policy Docs") with PDFs from:
+  - Riksbank: 2 recent Monetary Policy Reports (MPR) — policy reasoning + rate forecasts
+  - SCB: Economic Outlook / Konjunkturläget — narrative CPIF + unemployment context
+  - World Bank: Sweden country overview or Global Economic Prospects Sweden section
+- **Dify workflow** imported from `dify-workflow/econdadvisor-workflow.yml`:
+  1. **Input**: `question` (string) + `indicators` (JSON string)
+  2. **Knowledge Retrieval**: RAG over all policy docs KB
+  3. **LLM**: Claude Haiku — economist persona, indicators + retrieved chunks as context
+  4. **Code node**: extracts citations, packages `{ analysis, citations }` output
+  5. **End**: outputs `analysis` (string) + `citations` (JSON string array)
+- KB manually attached to Search Policy Docs node after DSL import
+- `DIFY_WORKFLOW_KEY` obtained and saved to `.env`
 - `DifyWorkflowClient.cs` — POSTs to `http://localhost/v1/workflows/run`
 
 Verification:
@@ -406,6 +456,14 @@ Local testing: `python -m http.server 8000` from `docs/` folder
 | Date | Mistake | Rule Added |
 |------|---------|-----------|
 | 2026-04-01 | SCB PxWeb variable `code` field ≠ Swedish display name. Used `"Kön"` (display) instead of `"Kon"` (code); same for `"Arbetskraftstillhörighet"` → `"Arbetskraftstillh"`. Got 400. | Always fetch table metadata (`GET {tablePath}`) and use the `"code"` field, never the `"text"` field, when building PxWeb queries. |
+| 2026-04-01 | SCB returns JSON-stat format (flat value array + stride-based indexing), not a simple JSON object. Assumed named fields per observation. | JSON-stat requires computing stride = product of sizes of all dimensions after the target dimension; flat_index = position × stride. |
+| 2026-04-01 | World Bank API returns an outer JSON array: `[{metadata}, [{data}]]`, not a plain object. Deserialised as root object and got null. | Always check actual response envelope before writing deserialisation code — World Bank wraps data at index [1] of the outer array. |
+| 2026-04-01 | Dify docker-compose launched from different drives (C: vs E:) gave api and worker containers different host paths for the same `/app/api/storage` volume mount. Worker threw `FileNotFoundError` on every uploaded file. | Explicitly pin the storage volume in `docker-compose.override.yml` for both api and worker to the same absolute Windows path. |
+| 2026-04-01 | `host.docker.internal` did not resolve inside worker and plugin_daemon containers on this Docker Desktop setup. Ollama embedding calls timed out with `[Errno -2] Name or service not known`. | Add `extra_hosts: - "host.docker.internal:host-gateway"` to every service that calls out to the Windows host (worker, plugin_daemon). |
+| 2026-04-01 | Dify plugin_daemon uses `uv` to create Python venvs inside `/app/storage/cwd`. On a Windows NTFS host-mounted volume, `uv` reflink operations fail with `os error 95`. Plugin installs fail. | Mount `cwd` as a Docker named volume (Linux ext4) and set `UV_LINK_MODE=copy` env var on plugin_daemon. |
+| 2026-04-01 | `PLUGIN_PYTHON_ENV_INIT_TIMEOUT=120` too short for numpy (15MB) + other deps to download. Plugin init killed mid-download. | Set `PLUGIN_PYTHON_ENV_INIT_TIMEOUT=600` in Dify `.env`. |
+| 2026-04-01 | Indexing 4 large PDFs concurrently overloaded Ollama + dropped Postgres connection. All 4 failed. | Upload and index one document at a time when using a local Ollama embedding model. |
+| 2026-04-01 | Dify knowledge-retrieval node outputs `kb_result` as a **list of chunk objects**, not a plain string. Output Formatter code using `re.finditer(pattern, kb_result)` threw `TypeError: expected string or bytes-like object`. | Always join `kb_result` list to a string first: `'\n'.join(item.get('content','') for item in kb_result)` before applying regex. |
 
 ---
 

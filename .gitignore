@@ -13,8 +13,9 @@ obj/
 
 # EF Core migrations are committed — NOT ignored
 
-# Riksbank PDFs too large for git
+# PDFs — too large for git
 dify-workflow/policy-docs/*.pdf
+Knowledge/
 
 # Docker volumes
 pgdata/
