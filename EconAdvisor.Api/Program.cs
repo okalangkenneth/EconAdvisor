@@ -5,6 +5,7 @@ using EconAdvisor.Api.Validators;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Serilog.Sinks.Elasticsearch;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -15,11 +16,20 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // ── Serilog ──────────────────────────────────────────────────────────────
+    var esUrl = builder.Configuration["ELASTICSEARCH_URL"] ?? "http://localhost:9200";
+
     builder.Host.UseSerilog((ctx, services, cfg) =>
         cfg.ReadFrom.Configuration(ctx.Configuration)
            .ReadFrom.Services(services)
            .Enrich.FromLogContext()
-           .WriteTo.Console());
+           .WriteTo.Console()
+           .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(esUrl))
+           {
+               AutoRegisterTemplate = true,
+               IndexFormat          = "econdadvisor-logs-{0:yyyy.MM.dd}",
+               NumberOfShards       = 1,
+               NumberOfReplicas     = 0,
+           }));
 
     // ── PostgreSQL / EF Core ─────────────────────────────────────────────────
     var connStr = builder.Configuration.GetConnectionString("Postgres")
