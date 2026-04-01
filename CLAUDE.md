@@ -267,11 +267,20 @@ WORLDBANK_API_BASE=https://api.worldbank.org/v2
 - Phase 1: Program.cs — Serilog, Swagger (dev), /health (NpgSql health check), stub endpoints
 - Phase 1: GitHub repo created (okalangkenneth/EconAdvisor) + initial commit pushed to master
 
+- Phase 2: RiksbankClient (SECBREPOEFF, SEGVB2YC, SEGVB10YC) — verified SWEA v1 API
+- Phase 2: ScbClient — CPIF (PR0101G/KPIF2020, ContentsCode=000007ZM) + unemployment rate
+  (AM0401A/AKURLBefM, codes Arbetskraftstillh/Kon/Alder verified from SCB metadata)
+- Phase 2: WorldBankClient — SE GDP growth NY.GDP.MKTP.KD.ZG, 15 years
+- Phase 2: IndicatorService — 1h TTL cache, PostgreSQL ON CONFLICT upsert, derived series
+- Phase 2: GET /api/indicators/{country}/{series} — all 8 series live-tested
+- Phase 2: launchSettings.json — API runs on port **5050** (5000 taken by ApiGateway container)
+- Phase 2: Corrections Log entry: SCB PxWeb variable codes differ from Swedish display names
+  (e.g. "Kön" → code "Kon", "Arbetskraftstillhörighet" → code "Arbetskraftstillh")
+
 ### 🔨 IN PROGRESS
 - (none)
 
 ### ❌ REMAINING
-- Phase 2: Riksbank / SCB / World Bank typed HTTP clients + PostgreSQL cache
 - Phase 3: Dify workflow build (upload PDFs, RAG nodes, LLM node, test API)
 - Phase 4: POST /api/analyse — full data + Dify integration
 - Phase 5: Serilog + ELK (Elasticsearch 7.17 + Kibana 7.17)
@@ -396,7 +405,7 @@ Local testing: `python -m http.server 8000` from `docs/` folder
 
 | Date | Mistake | Rule Added |
 |------|---------|-----------|
-| | | |
+| 2026-04-01 | SCB PxWeb variable `code` field ≠ Swedish display name. Used `"Kön"` (display) instead of `"Kon"` (code); same for `"Arbetskraftstillhörighet"` → `"Arbetskraftstillh"`. Got 400. | Always fetch table metadata (`GET {tablePath}`) and use the `"code"` field, never the `"text"` field, when building PxWeb queries. |
 
 ---
 
