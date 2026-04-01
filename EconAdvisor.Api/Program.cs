@@ -1,6 +1,8 @@
 using EconAdvisor.Api.Data;
 using EconAdvisor.Api.Endpoints;
 using EconAdvisor.Api.Services;
+using EconAdvisor.Api.Validators;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -69,6 +71,9 @@ try
             c.DefaultRequestHeaders.Add("Authorization", $"Bearer {difyKey}");
             c.Timeout = TimeSpan.FromSeconds(120); // workflows can be slow
         });
+
+    // ── Validation ───────────────────────────────────────────────────────────
+    builder.Services.AddValidatorsFromAssemblyContaining<AnalyseRequestValidator>();
 
     // ── Application services ─────────────────────────────────────────────────
     builder.Services.AddScoped<IndicatorService>();
