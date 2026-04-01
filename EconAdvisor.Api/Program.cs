@@ -58,6 +58,18 @@ try
             c.Timeout = TimeSpan.FromSeconds(30);
         });
 
+    var dify = builder.Configuration.GetSection("Dify");
+    var difyBase = dify["ApiBase"] ?? "http://localhost/v1";
+    var difyKey  = dify["WorkflowKey"] ?? string.Empty;
+
+    builder.Services
+        .AddHttpClient<DifyWorkflowClient>(c =>
+        {
+            c.BaseAddress = new Uri(difyBase.TrimEnd('/') + "/");
+            c.DefaultRequestHeaders.Add("Authorization", $"Bearer {difyKey}");
+            c.Timeout = TimeSpan.FromSeconds(120); // workflows can be slow
+        });
+
     // ── Application services ─────────────────────────────────────────────────
     builder.Services.AddScoped<IndicatorService>();
 
