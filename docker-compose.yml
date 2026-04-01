@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: econadvisor-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-econadvisor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-econadvisor}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-econadvisor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

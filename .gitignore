@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Claude Code local config
+.claude/settings.local.json
+
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+*.suo
+
+# EF Core migrations are committed — NOT ignored
+
+# Riksbank PDFs too large for git
+dify-workflow/policy-docs/*.pdf
+
+# Docker volumes
+pgdata/
+esdata/
+
+# OS
+.DS_Store
+Thumbs.db
